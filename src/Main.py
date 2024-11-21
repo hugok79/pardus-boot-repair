@@ -14,7 +14,7 @@ from gi.repository import Gtk, Handy, Gdk, Gio, GLib, Vte
 gettext.install("pardus-boot-repair", "/usr/share/locale/")
 Handy.init()
 
-APPVERSION = "0.5.2"
+APPVERSION = "1.0.0"
 APP_DIR = os.path.dirname(os.path.realpath(__file__))
 
 resource = Gio.resource_load(
@@ -136,7 +136,7 @@ class Application(Gtk.Application):
         self.dialog_about.hide()
 
     """
-        row functions is seperated to at least 2 subfunctions
+        row functions are seperated to at least 2 subfunctions
         pre() and post()
         pre() function will be called first and it will prepare the page for the user input or execute the command then set the post_command to the post() function
         post_command is a function that will be called after the vte command is executed (see vte_cb() function)
