@@ -185,19 +185,17 @@ class Application(Gtk.Application):
             self.update_status_page(_("Reinstalling GRUB Bootloader"), "content-loading-symbolic", _(
                 "We're reinstalling the GRUB boot loader to ensure your system can start up properly. This process may take a few moments. Once complete, your computer should boot into Pardus as usual."), False, False)
 
-            if self.rootfs.root_subvol == None:
-                self.vte_command("env disk={} mbr={} clear_efi={} removable={} grub-reinstall".format(
-                    self.rootfs.name,
-                    self.mbr,
-                    "y" if clear_efi else "N",
-                    "y" if removable else "N"), post)
-            else:
-                self.vte_command("env subvolume={} disk={} mbr={} clear_efi={} removable={} grub-reinstall".format(
-                    self.rootfs.root_subvol,
-                    self.rootfs.name,
-                    self.mbr,
-                    "y" if clear_efi else "N",
-                    "y" if removable else "N"), post)
+            envs = [
+                "disk={}".format(self.rootfs.name),
+                "mbr={}".format(self.mbr),
+                "clear_efi={}".format("y" if clear_efi else "N"),
+                "removable={}".format("y" if removable else "N"),
+            ]
+
+            if self.rootfs.root_subvol != None:
+                envs += ["subvolume={}".format(self.rootfs.root_subvol)]
+
+            self.vte_command("grub-reinstall", post, environ=envs)
 
         def post():
             self.update_status_page(_("GRUB Successfully Reinstalled"), "emblem-ok-symbolic", _(
@@ -213,12 +211,12 @@ class Application(Gtk.Application):
             self.update_status_page(_("Fixing Broken Packages"), "content-loading-symbolic", _(
                 "We're resolving issues with broken packages on your system to ensure everything works. This may take some time, but we're on it. Once complete, your system should be stable and ready for use."), False, False)
 
-            if self.rootfs.root_subvol == None:
-                self.vte_command(
-                    "env disk={} fix-broken-packages".format(self.rootfs.name), post)
-            else:
-                self.vte_command("env subvolume={} disk={} fix-broken-packages".format(
-                    self.rootfs.root_subvol, self.rootfs.name), post)
+            envs = ["disk={}".format(self.rootfs.name)]
+
+            if self.rootfs.root_subvol != None:
+                envs += ["subvolume={}".format(self.rootfs.root_subvol)]
+
+            self.vte_command("fix-broken-packages", post, environ=envs)
 
         def post():
             self.update_status_page(_("Packages Repaired"), "emblem-ok-symbolic", _(
@@ -241,12 +239,17 @@ class Application(Gtk.Application):
             self.update_status_page(_("Resetting password"), "content-loading-symbolic", _(
                 "We're resetting your password to provide access to your account. This process will only take a moment. Once complete, you'll be able to log in with your new password into your Pardus system."), False, False)
 
-            if self.rootfs.root_subvol == None:
-                self.vte_command("env disk={} user={} pass1={} pass2={} reset-password".format(
-                    self.rootfs.name, self.user, password1, password2), post, False)
-            else:
-                self.vte_command("env subvolume={} user={} disk={} pass1={} pass2={} reset-password".format(
-                    self.rootfs.root_subvol, self.user, self.rootfs.name, password1, password2), post, False)
+            envs = [
+                "disk={}".format(self.rootfs.name),
+                "user={}".format(self.user),
+                "pass1={}".format(password1),
+                "pass2={}".format(password2),
+            ]
+
+            if self.rootfs.root_subvol != None:
+                envs += ["subvolume={}".format(self.rootfs.root_subvol)]
+
+            self.vte_command("reset-password", post, False, environ=envs)
 
         def post():
             self.update_status_page(_("Password Reset Completed"), "emblem-ok-symbolic", _(
@@ -262,12 +265,14 @@ class Application(Gtk.Application):
             self.update_status_page(_("Updating Software Packages"), "content-loading-symbolic", _(
                 "We're currently updating the software packages on your system to ensure you have the latest features and security enhancements. This process may take some time depending on the number of updates available. Please be patient."), False, False)
 
-            if self.rootfs.root_subvol == None:
-                self.vte_command(
-                    "env disk={} full-upgrade".format(self.rootfs.name), post)
-            else:
-                self.vte_command("env subvolume={} disk={} full-upgrade".format(
-                    self.rootfs.root_subvol, self.rootfs.name), post)
+            envs = [
+                "disk={}".format(self.rootfs.name),
+            ]
+
+            if self.rootfs.root_subvol != None:
+                envs += ["subvolume={}".format(self.rootfs.root_subvol)]
+
+            self.vte_command("full-upgrade", post, environ=envs)
 
         def post():
             self.update_status_page(_("Software Packages Updated"), "emblem-ok-symbolic", _(
@@ -283,12 +288,15 @@ class Application(Gtk.Application):
             self.update_status_page(_("System Reinstallation"), "content-loading-symbolic", _(
                 "We're performing a clean reinstall of your system to ensure a fresh start. This process will reset your system to its original state, removing all applications."), False, False)
 
-            if self.rootfs.root_subvol == None:
-                self.vte_command(
-                    "env disk={} mbr={} pardus-reinstall".format(self.rootfs.name, self.mbr), post)
-            else:
-                self.vte_command("env subvolume={} disk={} mbr={} pardus-reinstall".format(
-                    self.rootfs.root_subvol, self.rootfs.name, self.mbr), post)
+            envs = [
+                "disk={}".format(self.rootfs.name),
+                "mbr={}".format(self.mbr),
+            ]
+
+            if self.rootfs.root_subvol != None:
+                envs += ["subvolume={}".format(self.rootfs.root_subvol)]
+
+            self.vte_command("pardus-reinstall", post, environ=envs)
 
         def post():
             self.update_status_page(_("System Reinstallation Completed"), "emblem-ok-symbolic", _(
@@ -323,8 +331,12 @@ class Application(Gtk.Application):
 
             self.update_status_page(_("Repairing Filesystem on {}").format(part.path), "content-loading-symbolic", _(
                 "We're currently repairing the filesystem on the selected partition. This process may take some time, depending on the size and severity of the issues found. Please be patient while we work to restore the partition's functionality."), False, False)
-            self.vte_command(
-                "env disk={} check-filesystem".format(part.name), post)
+
+            envs = [
+                "disk={}".format(part.name),
+            ]
+
+            self.vte_command("check-filesystem", post, environ=envs)
 
         def post():
             self.update_status_page(_("Filesystem Repair Successful"), "emblem-ok-symbolic", _(
@@ -351,12 +363,17 @@ class Application(Gtk.Application):
             self.update_status_page(_("Resetting User Settings"), "content-loading-symbolic", _(
                 "We're resetting your user configuration to its default state. This will revert any custom settings back to their original values. Please note that any personalized preferences will be lost. Once complete, your system will be refreshed and ready for use."), False, False)
 
-            if self.rootfs.root_subvol == None:
-                self.vte_command(
-                    "env pardus-chroot /dev/{} su {} -c 'cd ; rm -rvf .dbus .cache .local .config'".format(self.rootfs.name, self.user), post)
-            else:
-                self.vte_command("env subvolume={} pardus-chroot /dev/{} su {} -c 'cd ; rm -rvf .dbus .cache .local .config'".format(
-                    self.rootfs.root_subvol, self.rootfs.name, self.user), post)
+            envs = []
+
+            if self.rootfs.root_subvol != None:
+                envs += ["subvolume={}".format(self.rootfs.root_subvol)]
+
+            self.vte_command([
+                    "pardus-chroot",
+                    "/dev/{}".format(self.rootfs.name),
+                    "su", self.user, "-c",
+                    "cd ; rm -rvf .dbus .cache .local .config"
+                ], post, environ=envs)
 
         def post():
             self.update_status_page(_("Configuration Reset Completed"), "emblem-ok-symbolic", _(
@@ -374,12 +391,14 @@ class Application(Gtk.Application):
             self.update_status_page(_("Extracting System Logs"), "content-loading-symbolic", _(
                 "We're collecting important system logs and placing them in the '{}' directory as you requested. These logs contain helpful information about your system's activity and any issues it may be experiencing. Depending on how much information there is, this might take a little time. Thanks for waiting while we gather this data.").format(liveuser_home), False, False)
 
-            if self.rootfs.root_subvol == None:
-                self.vte_command(
-                    "env disk={} dump-info-log {}".format(self.rootfs.name, liveuser_home), post, False)
-            else:
-                self.vte_command("env subvolume={} disk={} dump-info-log {}".format(
-                    self.rootfs.root_subvol, self.rootfs.name, liveuser_home), post, False)
+            envs = [
+                "disk={}".format(self.rootfs.name),
+            ]
+
+            if self.rootfs.root_subvol != None:
+                envs += ["subvolume={}".format(self.rootfs.root_subvol)]
+
+            self.vte_command(["dump-info-log", liveuser_home], post, False, environ=envs)
 
         def post():
             self.update_status_page(_("System Logs Extracted"), "emblem-ok-symbolic", _(
@@ -396,12 +415,21 @@ class Application(Gtk.Application):
 
             # show terminal page
             self.btn_show_log.clicked()
-            if self.rootfs.root_subvol == None:
-                self.vte_command("env disk={} pardus-chroot /dev/{} su {} -".format(
-                    self.rootfs.name, self.rootfs.name, self.user), post, False)
-            else:
-                self.vte_command("env subvolume={} pardus-chroot /dev/{} su {} -".format(
-                    self.rootfs.root_subvol, self.rootfs.name, self.user), post, False)
+
+            envs = [
+                "disk={}".format(self.rootfs.name),
+            ]
+
+            if self.rootfs.root_subvol != None:
+                envs += ["subvolume={}".format(self.rootfs.root_subvol)]
+
+
+            self.vte_command([
+                    "pardus-chroot",
+                    "/dev/{}".format(self.rootfs.name),
+                    "su", "-", self.user
+                ], post, False, environ=envs)
+
             self.user = None
 
         def post():
@@ -420,15 +448,17 @@ class Application(Gtk.Application):
         if stop_spinner:
             self.spinner_loading.stop()
 
-    def vte_command(self, command, post_func, ask_user_confirm=True):
+    def vte_command(self, command, post_func, ask_user_confirm=True, environ=[]):
         try:
             if ask_user_confirm and not self.ask_confirmation(_("Are you sure you want to continue? This action is irreversible and may cause data loss.")):
                 self.update_status_page(_("Operation Cancelled"), "dialog-warning-symbolic", _(
                     "The operation has been cancelled by the user."), True, True)
                 return
-            env_vars = [f'{key}={value}' for key, value in os.environ.items()]
+            env_vars = [f'{key}={value}' for key, value in os.environ.items()] + environ
+            if type(command) == str:
+                command = ["/bin/bash", "-c", command]
             exec = self.vte_terminal.spawn_async(
-                Vte.PtyFlags.DEFAULT, os.environ['HOME'], ["/bin/bash", "-c", command], env_vars, GLib.SpawnFlags.SEARCH_PATH, None, None, -1, None, self.vte_cb)
+                Vte.PtyFlags.DEFAULT, os.environ['HOME'], command, env_vars, GLib.SpawnFlags.SEARCH_PATH, None, None, -1, None, self.vte_cb)
 
             self.vte_terminal.disconnect_by_func(self.vte_exited)
             self.vte_terminal.connect(
