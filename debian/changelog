@@ -1,4 +1,4 @@
-pardus-boot-repair (1.0.7) UNRELEASED; urgency=medium
+pardus-boot-repair (1.0.7) unstable; urgency=medium
 
   * lvm related security issues fixed.
   * operating system search improvements.
