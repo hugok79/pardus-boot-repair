@@ -18,6 +18,6 @@ chroot "$DESTDIR" dpkg -l | grep "^i[A-Z]" | tr -s " " | cut -f 2 -d " " | while
 done
 sync
 for dir in dev/pts dev sys proc ; do
-    while umount -lf ""$DESTDIR"/$dir" 2>/dev/null; do : ;done
+    while umount -lf "$DESTDIR/$dir" 2>/dev/null; do : ;done
 done
-umount -lf "$DESTDIR"  2>/dev/null
+umount -lf "$DESTDIR" 2>/dev/null

@@ -44,21 +44,21 @@ set -e
 chroot "$DESTDIR" grub-install --force /dev/$mbr $removable_arg
 
 # EFI hack for hardcoded winzort bootloader bioses.
-if [[ -f "$DESTDIR"/boot/efi/pardus/bootx64.efi ]] ; then # amd64 only
-    mkdir -p "$DESTDIR"/boot/efi/EFI/Microsoft/Boot/
-    if [[ -f ""$DESTDIR"/boot/efi/EFI/Microsoft/Boot/bootmgfw.efi" ]] ; then
-        mv "$DESTDIR"/boot/efi/EFI/Microsoft/Boot/bootmgfw.efi \
-            "$DESTDIR"/boot/efi/EFI/Microsoft/Boot/bootmgfw-winzort.efi
+if [[ -f "$DESTDIR/boot/efi/pardus/bootx64.efi" ]] ; then # amd64 only
+    mkdir -p "$DESTDIR/boot/efi/EFI/Microsoft/Boot/"
+    if [[ -f "$DESTDIR/boot/efi/EFI/Microsoft/Boot/bootmgfw.efi" ]] ; then
+        mv "$DESTDIR/boot/efi/EFI/Microsoft/Boot/bootmgfw.efi" \
+            "$DESTDIR/boot/efi/EFI/Microsoft/Boot/bootmgfw-winzort.efi"
     fi
-    cp "$DESTDIR"/boot/efi/pardus/bootx64.efi \
-        "$DESTDIR"/boot/efi/EFI/Microsoft/Boot/bootmgfw.efi
+    cp "$DESTDIR/boot/efi/pardus/bootx64.efi" \
+        "$DESTDIR/boot/efi/EFI/Microsoft/Boot/bootmgfw.efi"
 fi
 
 chroot "$DESTDIR" grub-mkconfig -o /boot/grub/grub.cfg
 if [[ -d /sys/firmware/efi/ ]] ; then
-    while umount -lf "\"$DESTDIR\"/sys/firmware/efi/efivars" 2>/dev/null ; do : ;done
+    while umount -lf "$DESTDIR/sys/firmware/efi/efivars" 2>/dev/null ; do : ;done
 fi
 for dir in dev/pts dev sys proc ; do
-    while umount -lf "\"$DESTDIR\"/$dir" 2>/dev/null; do : ;done
+    while umount -lf "$DESTDIR/$dir" 2>/dev/null; do : ;done
 done
 umount -lf "$DESTDIR"  2>/dev/null
