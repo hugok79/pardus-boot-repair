@@ -5,65 +5,99 @@ import uuid
 
 
 def get_part_label(block):
-    for device in os.listdir("/dev/disk/by-label/"):
-        if block == os.path.basename(os.readlink(f"/dev/disk/by-label/{device}")):
-            return device
+    if not os.path.isdir("/dev/disk/by-label"):
+        return None
+    try:
+        for device in os.listdir("/dev/disk/by-label/"):
+            target_path = f"/dev/disk/by-label/{device}"
+            if os.path.islink(target_path):
+                try:
+                    if block == os.path.basename(os.readlink(target_path)):
+                        return device
+                except OSError:
+                    continue
+    except OSError:
+        pass
+    return None
 
 def detect_os(path):
     if os.path.isfile(f"{path}/etc/os-release"):
-        with open(f"{path}/etc/os-release", "r") as f:
-            for line in f.readlines():
-                if line.startswith("NAME="):
-                    distro = line.split("=")[1].strip()
-                    if distro[0] == '"' and distro[-1] == '"':
-                        distro = distro[1:-1]
-                    return distro
+        try:
+            with open(f"{path}/etc/os-release", "r") as f:
+                for line in f.readlines():
+                    if line.startswith("NAME="):
+                        distro = line.split("=", 1)[1].strip()
+                        if len(distro) >= 2 and distro[0] == '"' and distro[-1] == '"':
+                            distro = distro[1:-1]
+                        elif len(distro) >= 2 and distro[0] == "'" and distro[-1] == "'":
+                            distro = distro[1:-1]
+                        return distro
+        except Exception:
+            pass
     elif os.path.isfile(f"{path}/Windows/System32/ntoskrnl.exe"):
         return "Windows"
     elif os.path.isfile(f"{path}/EFI/pardus/grubx64.efi"):
         return "Pardus (EFI)"
     elif os.path.isfile(f"{path}/EFI/Microsoft/Boot/bootmgfw.efi"):
         return "Windows (EFI)"
-    elif os.path.isfile(f"{path}/EFI"):
+    elif os.path.isdir(f"{path}/EFI"):
         return "EFI"
     return None
 
 def search_operating_system():
     # check live
-    with open("/proc/cmdline", "r") as f:
-        if not "boot=live" in f.read():
-            return []
-    # list parts
+    try:
+        with open("/proc/cmdline", "r") as f:
+            if "boot=live" not in f.read():
+                return []
+    except Exception:
+        return []
+
+    # list partitions (handles SATA sda, NVMe nvme0n1p1, eMMC mmcblk0p1, VirtIO vda, etc.)
     parts = []
-    for block in os.listdir("/sys/block/"):
-        if not block[-1].isnumeric():
-            for part in os.listdir(f"/sys/block/{block}"):
-                if part[-1].isnumeric():
-                    parts.append(part)
-            continue
-        if block.startswith(('loop', 'sr', 'zram', 'fd')):
-            continue
-        parts.append(block)
+    if os.path.isdir("/sys/block/"):
+        for block in sorted(os.listdir("/sys/block/")):
+            if block.startswith(('loop', 'sr', 'zram', 'fd')):
+                continue
+            block_path = f"/sys/block/{block}"
+            found_subpartitions = []
+            try:
+                for sub in os.listdir(block_path):
+                    if os.path.isfile(f"{block_path}/{sub}/partition"):
+                        found_subpartitions.append(sub)
+            except OSError:
+                pass
+            if found_subpartitions:
+                parts.extend(sorted(found_subpartitions))
+            else:
+                parts.append(block)
+
     # scan
     ret = []
     for part in parts:
         tmpdir = "/tmp/{}".format(uuid.uuid4())
-        os.mkdir(tmpdir)
-        subprocess.run(
-            ["mount", "-t", "auto", "-o", "defaults,ro", f"/dev/{part}", tmpdir],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        found_label = get_part_label(f"/dev/{part}")
-        found_os = detect_os(tmpdir)
-        info = {"os":found_os, "label":found_label, "part": f"/dev/{part}"}
-        ret.append(info)
-        subprocess.run(
-            ["umount", "-lf", tmpdir],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        os.rmdir(tmpdir)
+        try:
+            os.mkdir(tmpdir)
+            subprocess.run(
+                ["mount", "-t", "auto", "-o", "defaults,ro", f"/dev/{part}", tmpdir],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            found_label = get_part_label(f"/dev/{part}")
+            found_os = detect_os(tmpdir)
+            info = {"os": found_os, "label": found_label, "part": f"/dev/{part}"}
+            ret.append(info)
+        finally:
+            subprocess.run(
+                ["umount", "-lf", tmpdir],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            if os.path.isdir(tmpdir):
+                try:
+                    os.rmdir(tmpdir)
+                except OSError:
+                    pass
     return ret
 
 if __name__ == "__main__":
